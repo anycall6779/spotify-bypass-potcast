@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>오디오 무음 추가기</title>
+    <title>Spotify Bypass Podcast</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 40px; }
         #status { margin-top: 20px; font-weight: bold; }
@@ -10,7 +10,7 @@
     </style>
 </head>
 <body>
-    <h1>음악 파일에 1분 무음 추가하기</h1>
+    <h1>음악 파일에 1분 무음 추가하여 Spotify에 원하는 노래 Podcast를 추가합니다.</h1>
     <p>음악 파일을 선택하면 자동으로 변환이 시작되고 파일이 다운로드됩니다.</p>
     
     <input type="file" id="uploader">
@@ -30,7 +30,7 @@
             log: true,
             progress: ({ ratio }) => {
                 const percentage = Math.round(ratio * 100);
-                statusEl.textContent = `변환 중: ${percentage}%`;
+                statusEl.textContent = `변환 중(안보이면 개발자 도구를 여세요): ${percentage}%`;
                 progressBar.value = percentage;
                 progressBar.style.display = 'block';
             }
@@ -85,3 +85,4 @@
     </script>
 </body>
 </html>
+
