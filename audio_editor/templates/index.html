@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows 오디오 편집기</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f0f0; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { text-align: center; background-color: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { color: #0078d4; }
+        input[type="file"] { margin: 20px 0; }
+        input[type="submit"] { background-color: #0078d4; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .flash-messages { list-style: none; padding: 0; }
+        .flash-messages li { margin-top: 15px; background: #ffe6e6; color: #d8000c; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Spotify potcast 우회</h1>
+        <p>MP3, WAV, FLAC 등의 음악 파일 업로드</p>
+        
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <ul class=flash-messages>
+            {% for message in messages %}
+              <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+        
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="file">
+            <br>
+            <input type="submit" value="업로드 및 변환">
+        </form>
+    </div>
+</body>
+</html>
