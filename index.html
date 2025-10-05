@@ -57,13 +57,13 @@
 
             statusEl.textContent = '변환을 시작합니다...';
             
-
             await ffmpeg.run(
-                '-f', 'lavfi', '-i', `anullsrc=r=44100:cl=stereo:duration=60`,
+                '-f', 'lavfi', '-t', '60', '-i', 'anullsrc=r=44100:cl=stereo',
                 '-i', name,
                 '-filter_complex', '[0:a][1]concat=n=2:v=0:a=1',
                 outputName
             );
+
 
             statusEl.textContent = '작업 완료! 다운로드를 준비합니다...';
             progressBar.style.display = 'none';
