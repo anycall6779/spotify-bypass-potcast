@@ -3,26 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <title>Spotify potcast 우회</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <style>
         body { font-family: sans-serif; text-align: center; padding: 40px; }
         #status { margin-top: 20px; font-weight: bold; }
+        #result { margin-top: 20px; }
+        button { padding: 8px 12px; font-size: 14px; }
     </style>
 </head>
 <body>
     <h1>MP3, WAV, FLAC 등의 음악 파일 업로드</h1>
     <p>음악 파일을 선택하면 자동으로 변환이 시작되고 파일이 다운로드됩니다.</p>
-    
-    <input type="file" id="uploader">
+
+    <input type="file" id="uploader" accept="audio/*">
     <br>
     <p id="status">파일을 선택해주세요.</p>
     <div id="result"></div>
 
-    <script src="https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js"></script>
+    <!-- 1) UMD 번들(상위 API)을 먼저 로드 -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
+    <!-- 2) core 파일은 createFFmpeg 옵션에서 지정합니다 (다른 버전을 쓰려면 경로를 맞추세요) -->
     <script>
+        // 전역 FFmpeg에서 필요한 함수 가져오기 (ffmpeg.min.js가 로드된 뒤에 가능)
+        const { createFFmpeg, fetchFile } = FFmpeg;
 
-        const { createFFmpeg, fetchFile } = FFmpeg; 
-
-
+        // corePath는 @ffmpeg/core에서 제공하는 스크립트(또는 .wasm) 경로를 가리킵니다.
+        // CDN 경로는 ffmpeg.min.js 버전과 호환되는 core 버전을 사용하세요.
         const ffmpeg = createFFmpeg({
             corePath: "https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js",
             log: true
@@ -32,48 +38,84 @@
         const statusEl = document.getElementById('status');
         const resultEl = document.getElementById('result');
 
+        // 확장자에 맞는 MIME 반환 (간단 매핑)
+        function mimeForExt(ext) {
+            ext = ext.toLowerCase();
+            if (ext === '.mp3') return 'audio/mpeg';
+            if (ext === '.wav') return 'audio/wav';
+            if (ext === '.flac') return 'audio/flac';
+            if (ext === '.ogg') return 'audio/ogg';
+            return 'application/octet-stream';
+        }
+
         uploader.addEventListener('change', async (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
             resultEl.innerHTML = '';
-            
-            statusEl.textContent = '엔진 로딩 중...';
-            if (!ffmpeg.isLoaded()) {
-                await ffmpeg.load();
+            statusEl.textContent = '엔진 로딩 중... (처음 로드 시 시간이 걸립니다)';
+
+            try {
+                if (!ffmpeg.isLoaded()) {
+                    await ffmpeg.load();
+                }
+            } catch (err) {
+                console.error('FFmpeg 로드 실패', err);
+                statusEl.textContent = 'FFmpeg 로드에 실패했습니다. 콘솔 에러를 확인하세요.';
+                return;
             }
-            
+
             statusEl.textContent = '파일을 메모리에 쓰는 중입니다...';
-            const { name } = file;
-            const namePart = name.slice(0, name.lastIndexOf('.'));
-            const extPart = name.slice(name.lastIndexOf('.'));
+            // 파일명/확장자 처리 - 확장자가 없을 경우도 대비
+            const name = file.name || 'input_audio';
+            const lastDot = name.lastIndexOf('.');
+            const namePart = lastDot > 0 ? name.slice(0, lastDot) : name;
+            const extPart = lastDot > 0 ? name.slice(lastDot) : '.mp3';
             const outputName = `${namePart}_bypass_spotify${extPart}`;
 
-            ffmpeg.FS('writeFile', name, await fetchFile(file));
+            try {
+                // 브라우저 파일을 ffmpeg FS로 쓰기
+                ffmpeg.FS('writeFile', name, await fetchFile(file));
 
-            statusEl.textContent = '1분 무음을 추가하는 작업을 시작합니다 (속도가 조금 느릴 수 있습니다)...';
-            
-            await ffmpeg.run(
-                '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo:d=60',
-                '-i', name,
-                '-filter_complex', '[0:a][1]concat=n=2:v=0:a=1',
-                outputName
-            );
+                statusEl.textContent = '1분 무음을 추가하는 작업을 시작합니다 (속도가 느릴 수 있습니다)...';
 
-            statusEl.textContent = '작업 완료! 다운로드를 준비합니다...';
-            const data = ffmpeg.FS('readFile', outputName);
-            const blob = new Blob([data.buffer], { type: 'audio/mpeg' });
-            const url = URL.createObjectURL(blob);
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = outputName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            statusEl.textContent = '다운로드가 시작되었습니다! 파일을 확인해주세요.';
+                // concat 필터를 이용한 무음 추가 (입력: 1) 무음, 2) 원본)
+                // 만약 포맷별로 인코더/옵션이 달라야 하면 여기를 조정하세요.
+                await ffmpeg.run(
+                    '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo:d=60',
+                    '-i', name,
+                    '-filter_complex', '[0:a][1]concat=n=2:v=0:a=1',
+                    '-c:a', 'libmp3lame', // mp3로 인코딩(원본 포맷 유지가 필요하면 ext에 따라 분기)
+                    outputName
+                );
+
+                statusEl.textContent = '작업 완료! 다운로드를 준비합니다...';
+                const data = ffmpeg.FS('readFile', outputName);
+
+                // Blob 타입을 확장자에 맞춰 지정 (간단 매핑)
+                const mime = mimeForExt(extPart);
+                const blob = new Blob([data.buffer], { type: mime });
+
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = outputName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                statusEl.textContent = '다운로드가 시작되었습니다! 파일을 확인해주세요.';
+            } catch (err) {
+                console.error('FFmpeg 처리 오류', err);
+                statusEl.textContent = '처리 중 오류가 발생했습니다. 콘솔을 확인해주세요.';
+            } finally {
+                // (선택) ffmpeg FS에서 파일 제거하여 메모리 해제
+                try {
+                    ffmpeg.FS('unlink', name);
+                    ffmpeg.FS('unlink', outputName);
+                } catch (e) { /* 무시 */ }
+            }
         });
     </script>
 </body>
