@@ -2,26 +2,31 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>오디오 무음 추가기</title>
+    <title>Spotify potcast 우회</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 40px; }
         #status { margin-top: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>음악 파일에 1분 무음 추가하기</h1>
+    <h1>MP3, WAV, FLAC 등의 음악 파일 업로드</h1>
     <p>음악 파일을 선택하면 자동으로 변환이 시작되고 파일이 다운로드됩니다.</p>
     
     <input type="file" id="uploader">
     <br>
     <p id="status">파일을 선택해주세요.</p>
-    <div id="result"></div> 
+    <div id="result"></div>
 
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
-
+    <script src="https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js"></script>
     <script>
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: true });
+
+        const { createFFmpeg, fetchFile } = FFmpeg; 
+
+
+        const ffmpeg = createFFmpeg({
+            corePath: "https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js",
+            log: true
+        });
 
         const uploader = document.getElementById('uploader');
         const statusEl = document.getElementById('status');
@@ -46,7 +51,7 @@
 
             ffmpeg.FS('writeFile', name, await fetchFile(file));
 
-            statusEl.textContent = '1분 무음을 추가하는 작업을 시작합니다 (조금 걸릴 수 있습니다)...';
+            statusEl.textContent = '1분 무음을 추가하는 작업을 시작합니다 (속도가 조금 느릴 수 있습니다)...';
             
             await ffmpeg.run(
                 '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo:d=60',
@@ -63,19 +68,12 @@
             const link = document.createElement('a');
             link.href = url;
             link.download = outputName;
-
-            // 2. 링크를 문서에 잠시 추가합니다.
             document.body.appendChild(link);
-
-            // 3. 자바스크립트로 링크를 자동으로 클릭하여 다운로드를 시작합니다.
             link.click();
-
-            // 4. 사용된 링크와 URL을 정리합니다.
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
             
             statusEl.textContent = '다운로드가 시작되었습니다! 파일을 확인해주세요.';
-
         });
     </script>
 </body>
