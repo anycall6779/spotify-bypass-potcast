@@ -1,4 +1,4 @@
-https://68e2719bf134b50008edbc6c--spotifybypasssongpodcasts.netlify.app/
+https://spotifybypasssongpodcasts.netlify.app/
 
 free netlify use site 
 
