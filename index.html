@@ -1,109 +1,88 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <title>Spotify Potcast 우회</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans KR',sans-serif;text-align:center;padding:36px}
-    #status{margin-top:18px;font-weight:600}
-    #result{margin-top:14px}
-    input,button{margin-top:8px}
-  </style>
+    <meta charset="UTF-8">
+    <title>오디오 무음 추가기</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 40px; }
+        #status { margin-top: 20px; font-weight: bold; }
+        progress { width: 300px; margin-top: 10px; }
+    </style>
 </head>
 <body>
-  <h1>MP3 / WAV / FLAC 업로드 — 1분 무음 추가</h1>
-  <p>파일 선택 시 자동 변환 후 다운로드됩니다.</p>
+    <h1>음악 파일에 1분 무음 추가하기</h1>
+    <p>음악 파일을 선택하면 자동으로 변환이 시작되고 파일이 다운로드됩니다.</p>
+    
+    <input type="file" id="uploader">
+    <br>
+    <p id="status">파일을 선택해주세요.</p>
+    <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
 
-  <input id="uploader" type="file" accept="audio/*">
-  <p id="status">파일을 선택해주세요.</p>
-  <div id="result"></div>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 
-  <!-- 로컬 ffmpeg 번들 (ffmpeg/ 폴더 내부) -->
-  <script src="./ffmpeg/ffmpeg.min.js"></script>
-  <script>
-    // 전역 FFmpeg (ffmpeg.min.js가 제공)
-    const { createFFmpeg, fetchFile } = FFmpeg;
+    <script>
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const statusEl = document.getElementById('status');
+        const uploader = document.getElementById('uploader');
+        const progressBar = document.getElementById('progressBar');
 
-    // corePath는 로컬 ffmpeg-core.js를 가리킵니다.
-    const ffmpeg = createFFmpeg({
-      corePath: './ffmpeg/ffmpeg-core.js',
-      log: true
-    });
+        // 실시간 진행율을 처리하는 progress 콜백을 포함하여 FFmpeg 인스턴스 생성
+        const ffmpeg = createFFmpeg({
+            log: true,
+            progress: ({ ratio }) => {
+                // ratio는 0에서 1 사이의 값입니다. 백분율로 변환합니다.
+                const percentage = Math.round(ratio * 100);
+                statusEl.textContent = `변환 중: ${percentage}%`;
+                progressBar.value = percentage;
+                progressBar.style.display = 'block'; // progress 바 보이기
+            }
+        });
 
-    const uploader = document.getElementById('uploader');
-    const statusEl = document.getElementById('status');
-    const resultEl = document.getElementById('result');
+        uploader.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
 
-    function mimeForExt(ext) {
-      ext = ext.toLowerCase();
-      if (ext === '.mp3') return 'audio/mpeg';
-      if (ext === '.wav') return 'audio/wav';
-      if (ext === '.flac') return 'audio/flac';
-      if (ext === '.ogg') return 'audio/ogg';
-      return 'application/octet-stream';
-    }
+            statusEl.textContent = '엔진 로딩 중...';
+            progressBar.style.display = 'none'; // progress 바 초기화
+            
+            if (!ffmpeg.isLoaded()) {
+                await ffmpeg.load();
+            }
+            
+            statusEl.textContent = '파일을 메모리에 쓰는 중입니다...';
+            const { name } = file;
+            const namePart = name.slice(0, name.lastIndexOf('.'));
+            const extPart = name.slice(name.lastIndexOf('.'));
+            const outputName = `${namePart}_bypass_spotify${extPart}`;
 
-    uploader.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+            ffmpeg.FS('writeFile', name, await fetchFile(file));
 
-      statusEl.textContent = '엔진 로딩 중... (처음 한 번만 오래 걸립니다)';
-      resultEl.innerHTML = '';
+            statusEl.textContent = '변환을 시작합니다...';
+            
+            await ffmpeg.run(
+                '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo:d=60',
+                '-i', name,
+                '-filter_complex', '[0:a][1]concat=n=2:v=0:a=1',
+                outputName
+            );
 
-      try {
-        if (!ffmpeg.isLoaded()) {
-          await ffmpeg.load();
-        }
-      } catch (err) {
-        console.error('ffmpeg.load() 실패', err);
-        statusEl.textContent = 'FFmpeg 로드 실패 — 콘솔 확인';
-        return;
-      }
-
-      const originalName = file.name || 'input_audio';
-      const dot = originalName.lastIndexOf('.');
-      const base = dot > 0 ? originalName.slice(0, dot) : originalName;
-      const ext = dot > 0 ? originalName.slice(dot) : '.mp3';
-      const outName = `${base}_bypass_spotify${ext}`;
-
-      statusEl.textContent = '파일을 메모리에 씁니다...';
-      try {
-        ffmpeg.FS('writeFile', originalName, await fetchFile(file));
-
-        statusEl.textContent = '1분 무음 추가 중... (처리 시간은 파일 크기/브라우저 성능에 따라 다름)';
-        // 출력 코덱: mp3로 고정. 원본 포맷 유지하려면 ext에 따라 분기하세요.
-        await ffmpeg.run(
-          '-f','lavfi','-i','anullsrc=r=44100:cl=stereo:d=60',
-          '-i', originalName,
-          '-filter_complex','[0:a][1]concat=n=2:v=0:a=1',
-          '-c:a','libmp3lame',
-          outName
-        );
-
-        statusEl.textContent = '완료 — 다운로드 준비 중...';
-        const data = ffmpeg.FS('readFile', outName);
-        const blob = new Blob([data.buffer], { type: mimeForExt(ext) });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = outName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-
-        statusEl.textContent = '다운로드 시작됨 — 완료되면 확인하세요.';
-      } catch (err) {
-        console.error('처리 오류', err);
-        statusEl.textContent = '처리 중 오류 발생 — 콘솔 확인';
-      } finally {
-        // 정리: FS에서 파일 삭제 (있으면)
-        try { ffmpeg.FS('unlink', originalName); } catch(e){}
-        try { ffmpeg.FS('unlink', outName); } catch(e){}
-      }
-    });
-  </script>
+            statusEl.textContent = '작업 완료! 다운로드를 준비합니다...';
+            progressBar.style.display = 'none'; // progress 바 숨기기
+            
+            const data = ffmpeg.FS('readFile', outputName);
+            const blob = new Blob([data.buffer], { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = outputName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            statusEl.textContent = '다운로드가 시작되었습니다! 파일을 확인해주세요.';
+        });
+    </script>
 </body>
 </html>
