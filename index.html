@@ -10,12 +10,12 @@
 </head>
 <body>
     <h1>음악 파일에 1분 무음 추가하기</h1>
-    <p>음악 파일을 선택하면 맨 앞에 1분 무음을 추가한 뒤 다운로드 링크가 생성됩니다.</p>
+    <p>음악 파일을 선택하면 자동으로 변환이 시작되고 파일이 다운로드됩니다.</p>
     
     <input type="file" id="uploader">
     <br>
     <p id="status">파일을 선택해주세요.</p>
-    <div id="result"></div>
+    <div id="result"></div> 
 
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 
@@ -51,23 +51,31 @@
             await ffmpeg.run(
                 '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo:d=60',
                 '-i', name,
-                '-filter_complex', '[0:a][1:a]concat=n=2:v=0:a=1',
+                '-filter_complex', '[0:a][1]concat=n=2:v=0:a=1',
                 outputName
             );
 
-            statusEl.textContent = '작업 완료! 결과 파일을 읽는 중...';
+            statusEl.textContent = '작업 완료! 다운로드를 준비합니다...';
             const data = ffmpeg.FS('readFile', outputName);
-
             const blob = new Blob([data.buffer], { type: 'audio/mpeg' });
             const url = URL.createObjectURL(blob);
             
             const link = document.createElement('a');
             link.href = url;
             link.download = outputName;
-            link.textContent = `${outputName} 다운로드`;
+
+            // 2. 링크를 문서에 잠시 추가합니다.
+            document.body.appendChild(link);
+
+            // 3. 자바스크립트로 링크를 자동으로 클릭하여 다운로드를 시작합니다.
+            link.click();
+
+            // 4. 사용된 링크와 URL을 정리합니다.
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
             
-            resultEl.appendChild(link);
-            statusEl.textContent = '다운로드 링크가 생성되었습니다!';
+            statusEl.textContent = '다운로드가 시작되었습니다! 파일을 확인해주세요.';
+
         });
     </script>
 </body>
