@@ -1,4 +1,4 @@
-[https://spotifybypasspotcast.netlify.app/](https://68e2719bf134b50008edbc6c--spotifybypasssongpodcasts.netlify.app/)
+https://68e2719bf134b50008edbc6c--spotifybypasssongpodcasts.netlify.app/
 
 free netlify use site 
 
