@@ -8,6 +8,25 @@
         .container { max-width: 600px; margin: auto; }
         #status { margin-top: 20px; font-weight: bold; min-height: 20px; }
         progress { width: 100%; margin-top: 10px; }
+
+        /* ▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 버튼 스타일 추가 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼ */
+        .button {
+            display: inline-block;
+            background-color: #1DB954; /* Spotify Green */
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            margin-top: 15px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .button:hover {
+            background-color: #1ED760;
+        }
+        /* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
     </style>
 </head>
 <body>
@@ -16,7 +35,9 @@
         <p>음악 파일에 1분 무음을 추가하여 Podcast로 업로드할 수 있게 변환합니다.</p>
         
         <input type="file" id="uploader">
-        
+
+        <br>
+        <a href="https://creators.spotify.com/" target="_blank" class="button">Spotify Podcasts 로 바로가기</a>
         <p id="status">파일을 선택해주세요.</p>
         <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
     </div>
@@ -29,7 +50,6 @@
         const uploader = document.getElementById('uploader');
         const progressBar = document.getElementById('progressBar');
 
-        // 실시간 진행율을 처리하는 progress 콜백을 포함하여 FFmpeg 인스턴스 생성
         const ffmpeg = createFFmpeg({
             log: true,
             progress: ({ ratio }) => {
@@ -48,7 +68,7 @@
 
             statusEl.textContent = '엔진 로딩 중...';
             progressBar.style.display = 'none';
-            uploader.disabled = true; // 처리 중 파일 선택 비활성화
+            uploader.disabled = true;
             
             if (!ffmpeg.isLoaded()) {
                 await ffmpeg.load();
@@ -87,8 +107,8 @@
             URL.revokeObjectURL(url);
             
             statusEl.textContent = '다운로드가 시작되었습니다! 파일을 확인해주세요.';
-            uploader.disabled = false; // 처리 완료 후 파일 선택 활성화
-            uploader.value = ''; // 파일 선택 초기화
+            uploader.disabled = false;
+            uploader.value = '';
         });
     </script>
 </body>
