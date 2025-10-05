@@ -26,15 +26,13 @@
         const uploader = document.getElementById('uploader');
         const progressBar = document.getElementById('progressBar');
 
-        // 실시간 진행율을 처리하는 progress 콜백을 포함하여 FFmpeg 인스턴스 생성
         const ffmpeg = createFFmpeg({
             log: true,
             progress: ({ ratio }) => {
-                // ratio는 0에서 1 사이의 값입니다. 백분율로 변환합니다.
                 const percentage = Math.round(ratio * 100);
                 statusEl.textContent = `변환 중: ${percentage}%`;
                 progressBar.value = percentage;
-                progressBar.style.display = 'block'; // progress 바 보이기
+                progressBar.style.display = 'block';
             }
         });
 
@@ -43,7 +41,7 @@
             if (!file) return;
 
             statusEl.textContent = '엔진 로딩 중...';
-            progressBar.style.display = 'none'; // progress 바 초기화
+            progressBar.style.display = 'none';
             
             if (!ffmpeg.isLoaded()) {
                 await ffmpeg.load();
@@ -59,15 +57,16 @@
 
             statusEl.textContent = '변환을 시작합니다...';
             
+
             await ffmpeg.run(
-                '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo:d=60',
+                '-f', 'lavfi', '-i', `anullsrc=r=44100:cl=stereo:duration=60`,
                 '-i', name,
                 '-filter_complex', '[0:a][1]concat=n=2:v=0:a=1',
                 outputName
             );
 
             statusEl.textContent = '작업 완료! 다운로드를 준비합니다...';
-            progressBar.style.display = 'none'; // progress 바 숨기기
+            progressBar.style.display = 'none';
             
             const data = ffmpeg.FS('readFile', outputName);
             const blob = new Blob([data.buffer], { type: 'audio/mpeg' });
